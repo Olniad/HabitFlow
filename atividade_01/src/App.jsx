@@ -20,7 +20,7 @@ function App() {
 
   // Telas de hábito
   const [habits, setHabits] = useState([
-    { id: 1, name: 'Beber 500ml de água', count: 0, target: 6, category: 'Saúde' },
+    { id: 1, name: 'Beber 1 Litro de água', count: 0, target: 4, category: 'Saúde' },
     { id: 2, name: 'Ir Para a Academia', count: 0, target: 1, category: 'Saúde' },
     { id: 3, name: 'Estudar 30 minutos', count: 0, target: 4, category: 'Produtividade' }
   ]);
@@ -150,6 +150,27 @@ function App() {
     return found ? found.icon : '🔖';
   };
 
+  const last4DaysData = history.slice(-4).map(entry => {
+    const data = { date: entry.date };
+    entry.habits.forEach(h => {
+      const habitName = habits.find(x => x.id === h.id)?.name || `ID ${h.id}`;
+      data[habitName] = h.count;
+    });
+    return data;
+  });
+
+const monthlyData = habits.map(habit => {
+    let total = 0;
+    history.forEach(day => {
+      const record = day.habits.find(x => x.id === habit.id);
+      total += record ? record.count : 0;
+    });
+    return {
+      name: habit.name,
+      total
+    };
+  });
+
   const filteredHabits = filterCategory === 'Todas'
     ? habits
     : habits.filter(habit => habit.category === filterCategory);
@@ -235,65 +256,118 @@ function App() {
       </div>
 
       <div className="habits-list">
-        {filteredHabits.map(habit => (
-          <div key={habit.id} className="habit-card">
-            <span>{getIcon(habit.category)} {habit.name}</span>
-            <div className="counter">
-              <button className="btn decrement" onClick={() => decrement(habit.id)}>-</button>
-              <span>{habit.count} / {habit.target}</span>
-              <button className="btn increment" onClick={() => increment(habit.id)}>+</button>
+        {filteredHabits.length === 0 ? (
+          <p style={{ textAlign: 'center', color: '#777', marginTop: '20px' }}>
+            Nenhum hábito para a categoria selecionada.
+          </p>
+        ) : (
+          filteredHabits.map(habit => (
+            <div key={habit.id} className="habit-card">
+              <span>{getIcon(habit.category)} {habit.name}</span>
+              <div className="counter">
+                <button className="btn decrement" onClick={() => decrement(habit.id)}>-</button>
+                <span>{habit.count} / {habit.target}</span>
+                <button className="btn increment" onClick={() => increment(habit.id)}>+</button>
+              </div>
+              <div className="dropdown-wrapper">
+                <button
+                  className="dropdown-toggle"
+                  data-dropdown-button-id={habit.id}
+                  onClick={() => setDropdownOpenId(dropdownOpenId === habit.id ? null : habit.id)}
+                >
+                  ⋮
+                </button>
+                {dropdownOpenId === habit.id && (
+                  <div className="dropdown-menu" data-dropdown-menu-id={habit.id}>
+                    <button onClick={() => startEditHabit(habit)}>Editar</button>
+                    <button onClick={() => confirmDeleteHabit(habit)}>Excluir</button>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="dropdown-wrapper">
-              <button
-                className="dropdown-toggle"
-                data-dropdown-button-id={habit.id}
-                onClick={() => setDropdownOpenId(dropdownOpenId === habit.id ? null : habit.id)}
-              >
-                ⋮
-              </button>
-              {dropdownOpenId === habit.id && (
-                <div className="dropdown-menu" data-dropdown-menu-id={habit.id}>
-                  <button onClick={() => startEditHabit(habit)}>Editar</button>
-                  <button onClick={() => confirmDeleteHabit(habit)}>Excluir</button>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
+          ))
+        )}
+      </div>
+
+      <h1>Relatórios</h1>
+
+      <div style={{ marginTop: '40px' }}>
+        <h2>Gráfico dos Últimos 4 Dias</h2>
+        <ResponsiveContainer width="100%" height={250}>
+          <BarChart data={last4DaysData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="date" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            {habits.map(habit => (
+              <Bar
+                key={habit.id}
+                dataKey={habit.name}
+                fill="#007bff"
+              />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+
+        <h2 style={{ marginTop: '40px' }}>Gráfico Mensal</h2>
+        <ResponsiveContainer width="100%" height={250}>
+          <BarChart data={monthlyData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="total" fill="#28a745" />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
 
       {showModal && (
-        <div className="modal" onClick={(e) => { if (e.target.className === 'modal') setShowModal(false); }}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <h3>{editHabit ? 'Editar Hábito' : 'Cadastrar Hábito'}</h3>
-            <input
-              value={newHabit}
-              onChange={(e) => setNewHabit(e.target.value)}
-              placeholder="Nome do hábito"
-            />
-            <input
-              type="number"
-              value={newTarget}
-              min="1"
-              onChange={(e) => setNewTarget(Number(e.target.value))}
-              placeholder="Alvo diário (ex: 3 vezes)"
-            />
-            <select value={newCategory} onChange={(e) => setNewCategory(e.target.value)}>
-              {CATEGORIES.map(cat => (
-                <option key={cat.label} value={cat.label}>
-                  {cat.icon} {cat.label}
-                </option>
-              ))}
-            </select>
-            <div className="modal-buttons">
-              <button onClick={editHabit ? saveEditHabit : addHabit}>
-                {editHabit ? 'Salvar' : 'Salvar'}
-              </button>
-              <button onClick={() => setShowModal(false)}>Cancelar</button>
+          <div className="modal" onClick={(e) => { if(e.target.className === 'modal') setShowModal(false); }}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+              <h3>{editHabit ? 'Editar Hábito' : 'Cadastrar Hábito'}</h3>
+
+              <label htmlFor="habitName">Nome do hábito</label>
+              <input
+                id="habitName"
+                value={newHabit}
+                onChange={(e) => setNewHabit(e.target.value)}
+                placeholder="Digite o nome do hábito"
+              />
+
+              <label htmlFor="habitCategory">Categoria</label>
+              <select
+                id="habitCategory"
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+              >
+                {CATEGORIES.map(cat => (
+                  <option key={cat.label} value={cat.label}>
+                    {cat.icon} {cat.label}
+                  </option>
+                ))}
+              </select>
+
+              <label htmlFor="habitTarget">Alvo diário</label>
+              <input
+                id="habitTarget"
+                type="number"
+                min="1"
+                value={newTarget}
+                onChange={(e) => setNewTarget(e.target.value)}
+                placeholder="Quantidade de vezes por dia"
+              />
+
+              <div className="modal-buttons">
+                <button onClick={editHabit ? saveEditHabit : addHabit}>
+                  Salvar
+                </button>
+                <button onClick={() => setShowModal(false)}>Cancelar</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
       {showDeleteModal && (
         <div className="modal" onClick={(e) => { if (e.target.className === 'modal') setShowDeleteModal(false); }}>
