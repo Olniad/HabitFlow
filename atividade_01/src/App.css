@@ -188,3 +188,46 @@ h1 {
   border-bottom: 3px solid #007bff;
   font-weight: 600;
 }
+
+.auth-container {
+  max-width: 400px;
+  margin: 100px auto;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.auth-container h2 {
+  text-align: center;
+  color: #2c3e50;
+}
+
+.auth-container input {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}
+
+.auth-container button {
+  background-color: #27ae60;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.auth-container .link {
+  color: #007bff;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.modal-content input[type="number"] {
+  margin-top: 10px;
+}

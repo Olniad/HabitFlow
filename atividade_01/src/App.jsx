@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react';
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend
+} from 'recharts';
 import './App.css';
 
 const CATEGORIES = [
@@ -9,14 +12,43 @@ const CATEGORIES = [
 ];
 
 function App() {
+  const [screen, setScreen] = useState('login'); // 'login' | 'signup' | 'main'
+
+  // Telas de login/cadastro
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+
+  // Telas de hábito
   const [habits, setHabits] = useState([
-    { id: 1, name: 'Beber água', count: 0, category: 'Saúde' },
-    { id: 2, name: 'Exercícios', count: 0, category: 'Saúde' },
-    { id: 3, name: 'Estudar', count: 0, category: 'Produtividade' }
+    { id: 1, name: 'Beber 500ml de água', count: 0, target: 6, category: 'Saúde' },
+    { id: 2, name: 'Ir Para a Academia', count: 0, target: 1, category: 'Saúde' },
+    { id: 3, name: 'Estudar 30 minutos', count: 0, target: 4, category: 'Produtividade' }
   ]);
-  
+
+    const [history, setHistory] = useState(() => {
+    const today = new Date();
+    const generateDate = (offset) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() - offset);
+      return d.toISOString().slice(0, 10);
+    };
+
+    const fakeHistory = [];
+    for (let i = 0; i < 30; i++) {
+      const date = generateDate(i);
+      const dayHabits = habits.map(habit => ({
+        id: habit.id,
+        count: Math.floor(Math.random() * (habit.target + 1)) // entre 0 e o alvo
+      }));
+      fakeHistory.push({ date, habits: dayHabits });
+    }
+
+    return fakeHistory.reverse(); // do mais antigo ao mais recente
+  });
+
   const [newHabit, setNewHabit] = useState('');
   const [newCategory, setNewCategory] = useState(CATEGORIES[0].label);
+  const [newTarget, setNewTarget] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [dropdownOpenId, setDropdownOpenId] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -26,48 +58,35 @@ function App() {
 
   useEffect(() => {
     function handleClickOutside(event) {
-      // Se não tiver dropdown aberto, não precisa fazer nada
       if (dropdownOpenId === null) return;
 
-      // Seleciona o botão dropdown que está aberto
       const dropdownButton = document.querySelector(
         `[data-dropdown-button-id="${dropdownOpenId}"]`
       );
 
-      // Se clicou no botão, deixa aberto (toggle já feito no onClick)
-      if (dropdownButton && dropdownButton.contains(event.target)) {
-        return;
-      }
+      if (dropdownButton && dropdownButton.contains(event.target)) return;
 
-      // Seleciona o menu dropdown aberto
       const dropdownMenu = document.querySelector(
         `[data-dropdown-menu-id="${dropdownOpenId}"]`
       );
 
-      // Se clicou dentro do menu, não fecha
-      if (dropdownMenu && dropdownMenu.contains(event.target)) {
-        return;
-      }
+      if (dropdownMenu && dropdownMenu.contains(event.target)) return;
 
-      // Se clicou fora, fecha o dropdown
       setDropdownOpenId(null);
     }
 
     document.addEventListener('mousedown', handleClickOutside);
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [dropdownOpenId]);
 
   const increment = (id) => {
-    setHabits(habits.map(habit => 
-      habit.id === id ? {...habit, count: habit.count + 1} : habit
+    setHabits(habits.map(habit =>
+      habit.id === id ? { ...habit, count: habit.count + 1 } : habit
     ));
   };
 
   const decrement = (id) => {
-    setHabits(habits.map(habit => 
+    setHabits(habits.map(habit =>
       habit.id === id && habit.count > 0
         ? { ...habit, count: habit.count - 1 }
         : habit
@@ -75,14 +94,16 @@ function App() {
   };
 
   const addHabit = () => {
-    if (newHabit.trim()) {
+    if (newHabit.trim() && newTarget > 0) {
       setHabits([...habits, {
         id: Date.now(),
         name: newHabit,
         category: newCategory,
+        target: newTarget,
         count: 0
       }]);
       setNewHabit('');
+      setNewTarget(1);
       setNewCategory(CATEGORIES[0].label);
       setShowModal(false);
     }
@@ -92,19 +113,21 @@ function App() {
     setEditHabit(habit);
     setNewHabit(habit.name);
     setNewCategory(habit.category);
+    setNewTarget(habit.target);
     setShowModal(true);
     setDropdownOpenId(null);
   };
 
   const saveEditHabit = () => {
-    if (newHabit.trim()) {
+    if (newHabit.trim() && newTarget > 0) {
       setHabits(habits.map(habit =>
         habit.id === editHabit.id
-          ? {...habit, name: newHabit, category: newCategory}
+          ? { ...habit, name: newHabit, category: newCategory, target: newTarget }
           : habit
       ));
       setEditHabit(null);
       setNewHabit('');
+      setNewTarget(1);
       setNewCategory(CATEGORIES[0].label);
       setShowModal(false);
     }
@@ -127,15 +150,65 @@ function App() {
     return found ? found.icon : '🔖';
   };
 
-  // Filtra hábitos pela categoria selecionada
   const filteredHabits = filterCategory === 'Todas'
     ? habits
     : habits.filter(habit => habit.category === filterCategory);
 
+  // === TELA DE LOGIN ===
+  if (screen === 'login') {
+    return (
+      <div className="auth-container">
+        <h2>Login</h2>
+        <input
+          type="text"
+          placeholder="Usuário"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+        />
+        <input
+          type="password"
+          placeholder="Senha"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <button onClick={() => setScreen('main')}>Entrar</button>
+        <p style={{ marginTop: '10px' }}>
+          Não tem conta? <span className="link" onClick={() => setScreen('signup')}>Criar conta</span>
+        </p>
+      </div>
+    );
+  }
+
+  // === TELA DE CADASTRO ===
+  if (screen === 'signup') {
+    return (
+      <div className="auth-container">
+        <h2>Criar Conta</h2>
+        <input
+          type="text"
+          placeholder="Novo usuário"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+        />
+        <input
+          type="password"
+          placeholder="Nova senha"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <button onClick={() => setScreen('main')}>Cadastrar</button>
+        <p style={{ marginTop: '10px' }}>
+          Já tem conta? <span className="link" onClick={() => setScreen('login')}>Voltar para login</span>
+        </p>
+      </div>
+    );
+  }
+
+  // === TELA PRINCIPAL ===
   return (
     <div className="app">
       <h1>Meus Hábitos Diários</h1>
-      
+
       <button className='btn-modal' onClick={() => {
         setShowModal(true);
         setEditHabit(null);
@@ -143,7 +216,6 @@ function App() {
         setNewCategory(CATEGORIES[0].label);
       }}>+ Novo Hábito</button>
 
-      {/* Filtro de categorias */}
       <div className="category-filter" style={{ marginBottom: '20px', display: 'flex', gap: '15px', justifyContent: 'center' }}>
         <button
           className={`btn category-btn ${filterCategory === 'Todas' ? 'selected' : ''}`}
@@ -166,39 +238,45 @@ function App() {
         {filteredHabits.map(habit => (
           <div key={habit.id} className="habit-card">
             <span>{getIcon(habit.category)} {habit.name}</span>
-              <div className="counter">
-                <button className="btn decrement" onClick={() => decrement(habit.id)}>-</button>
-                <span>{habit.count}</span>
-                <button className="btn increment" onClick={() => increment(habit.id)}>+</button>
-              </div>
-              <div className="dropdown-wrapper">
-                <button
-                  className="dropdown-toggle"
-                  data-dropdown-button-id={habit.id}
-                  onClick={() => setDropdownOpenId(dropdownOpenId === habit.id ? null : habit.id)}
-                >
-                  ⋮
-                </button>
-                {dropdownOpenId === habit.id && (
-                  <div className="dropdown-menu" data-dropdown-menu-id={habit.id}>
-                    <button onClick={() => startEditHabit(habit)}>Editar</button>
-                    <button onClick={() => confirmDeleteHabit(habit)}>Excluir</button>
-                  </div>
-                )}
-              </div>
+            <div className="counter">
+              <button className="btn decrement" onClick={() => decrement(habit.id)}>-</button>
+              <span>{habit.count} / {habit.target}</span>
+              <button className="btn increment" onClick={() => increment(habit.id)}>+</button>
+            </div>
+            <div className="dropdown-wrapper">
+              <button
+                className="dropdown-toggle"
+                data-dropdown-button-id={habit.id}
+                onClick={() => setDropdownOpenId(dropdownOpenId === habit.id ? null : habit.id)}
+              >
+                ⋮
+              </button>
+              {dropdownOpenId === habit.id && (
+                <div className="dropdown-menu" data-dropdown-menu-id={habit.id}>
+                  <button onClick={() => startEditHabit(habit)}>Editar</button>
+                  <button onClick={() => confirmDeleteHabit(habit)}>Excluir</button>
+                </div>
+              )}
+            </div>
           </div>
         ))}
       </div>
 
-      {/* Modal Cadastrar/Editar */}
       {showModal && (
-        <div className="modal" onClick={(e) => { if(e.target.className === 'modal') setShowModal(false); }}>
+        <div className="modal" onClick={(e) => { if (e.target.className === 'modal') setShowModal(false); }}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <h3>{editHabit ? 'Editar Hábito' : 'Cadastrar Hábito'}</h3>
             <input
               value={newHabit}
               onChange={(e) => setNewHabit(e.target.value)}
               placeholder="Nome do hábito"
+            />
+            <input
+              type="number"
+              value={newTarget}
+              min="1"
+              onChange={(e) => setNewTarget(Number(e.target.value))}
+              placeholder="Alvo diário (ex: 3 vezes)"
             />
             <select value={newCategory} onChange={(e) => setNewCategory(e.target.value)}>
               {CATEGORIES.map(cat => (
@@ -217,9 +295,8 @@ function App() {
         </div>
       )}
 
-      {/* Modal Excluir */}
       {showDeleteModal && (
-        <div className="modal" onClick={(e) => { if(e.target.className === 'modal') setShowDeleteModal(false); }}>
+        <div className="modal" onClick={(e) => { if (e.target.className === 'modal') setShowDeleteModal(false); }}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <h3>Excluir Hábito</h3>
             <p>Tem certeza que deseja excluir o hábito "{habitToDelete?.name}"?</p>
@@ -230,7 +307,6 @@ function App() {
           </div>
         </div>
       )}
-
     </div>
   );
 }
